@@ -8,17 +8,14 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from dotenv import load_dotenv
 from collections import defaultdict
 
-# ✅ 台灣時區
 TW = timezone(timedelta(hours=8))
 
-# ✅ 環境變數
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 CHAT_ID = int(os.getenv("TELEGRAM_CHAT_ID"))
 
-# ✅ Volume 路徑
 RECORD_FILE = "/app/data/records.json"
 
-# ========== 紀錄處理 ==========
+# ========== 記錄處理 ==========
 def load_records():
     if not os.path.exists(RECORD_FILE):
         return []
@@ -26,8 +23,12 @@ def load_records():
         return json.load(f)
 
 def save_records(records):
-    with open(RECORD_FILE, "w") as f:
-        json.dump(records, f, ensure_ascii=False, indent=2)
+    try:
+        with open(RECORD_FILE, "w") as f:
+            json.dump(records, f, ensure_ascii=False, indent=2)
+        print(f"✅ 已寫入 records.json，共 {len(records)} 筆")
+    except Exception as e:
+        print(f"❌ 寫入 records.json 失敗：{e}")
 
 def append_record(source, symbol):
     records = load_records()
@@ -47,7 +48,6 @@ def clean_symbol(symbol: str) -> str:
             symbol = symbol.replace(suffix, "")
     return symbol
 
-# ========== 初始化 ==========
 def initialize_record_file():
     if os.path.exists(RECORD_FILE):
         print("📁 已存在 records.json，跳過初始化")
@@ -115,8 +115,8 @@ async def check_all():
     for source, symbols in all_sources.items():
         for symbol in symbols:
             if (source, symbol) not in last_symbols:
-                append_record(source, symbol)
                 print(f"🟢 新上 {source}：{symbol}")
+                append_record(source, symbol)
                 notified.append(f"📢【{source}】新上：{clean_symbol(symbol)}")
             else:
                 if source == "Binance":
@@ -135,7 +135,7 @@ async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     records = load_records()
     sorted_records = sorted(records, key=lambda x: x["timestamp"], reverse=True)
     lines = [f"{r['timestamp']} - {r['source']}：{r['symbol']}" for r in sorted_records]
-    text = "\n".join(lines[:50]) or "📭 尚無紀錄"
+    text = "\n.join(lines[:50]) or "📭 尚無紀錄"
     await update.message.reply_text(text)
 
 async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -168,6 +168,21 @@ async def force_check_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     await check_all()
     await update.message.reply_text("✅ 已執行一次比對")
 
+async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    records = load_records()
+    total = len(records)
+    latest = defaultdict(lambda: None)
+    for r in sorted(records, key=lambda x: x["timestamp"], reverse=True):
+        if not latest[r["source"]]:
+            latest[r["source"]] = r
+    lines = [f"📦 記錄總數：{total} 筆"]
+    for source in ["Binance", "Bybit", "OKX", "Upbit"]:
+        r = latest.get(source)
+        if r:
+            time = r["timestamp"]
+            lines.append(f"📌 {source} 最新：{time} - {clean_symbol(r['symbol'])}")
+    await update.message.reply_text("\n".join(lines))
+
 # ========== 啟動 ==========
 async def main():
     initialize_record_file()
@@ -176,6 +191,7 @@ async def main():
     app.add_handler(CommandHandler("check", check_command))
     app.add_handler(CommandHandler("history", history_command))
     app.add_handler(CommandHandler("forcecheck", force_check_command))
+    app.add_handler(CommandHandler("debug", debug_command))
 
     scheduler = AsyncIOScheduler()
     scheduler.add_job(check_all, "interval", minutes=3)
