@@ -138,11 +138,18 @@ async def notify(text):
     payload = {"chat_id": CHAT_ID, "text": text}
     requests.post(url, data=payload)
 
-# ✅ 修正版 /check
+# ✅ 升級版 /check：只列出 timestamp ≠ 初始化時間者
 async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     records = load_records()
+    if not records:
+        await update.message.reply_text("📭 尚無紀錄")
+        return
+
+    init_time = records[0]["timestamp"]
+    new_records = [r for r in records if r["timestamp"] != init_time]
+
     grouped = defaultdict(list)
-    for r in sorted(records, key=lambda x: x["timestamp"], reverse=True):
+    for r in sorted(new_records, key=lambda x: x["timestamp"], reverse=True):
         grouped[r["source"]].append(r)
 
     output = []
@@ -199,7 +206,7 @@ async def main():
     scheduler.start()
 
     print("✅ 監控機器人已啟動")
-    await notify("✅ 監控機器人 v4.1.1 已啟動完成")
+    await notify("✅ 監控機器人 v4.1.2 已啟動完成")
     await app.run_polling()
 
 if __name__ == "__main__":
