@@ -9,19 +9,15 @@ from dotenv import load_dotenv
 from collections import defaultdict
 from pathlib import Path
 
-# ✅ 台灣時間
 TW = timezone(timedelta(hours=8))
 
-# ✅ Telegram 與檔案位置
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 CHAT_ID = int(os.getenv("TELEGRAM_CHAT_ID"))
 DATA_DIR = Path("/app/data")
 RECORD_FILE = DATA_DIR / "records.json"
 
-# ✅ 建立資料夾
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# ========== 資料讀寫 ==========
 def load_records():
     if not RECORD_FILE.exists():
         return []
@@ -80,7 +76,7 @@ def initialize_record_file():
     ]
     save_records(records)
     print(f"✅ 初始化完成，共 {len(records)} 筆")
-# ========== 抓資料 ==========
+
 def fetch_binance():
     url = "https://fapi.binance.com/fapi/v1/exchangeInfo"
     data = requests.get(url).json()
@@ -91,7 +87,9 @@ def fetch_binance():
 def fetch_bybit():
     url = "https://api.bybit.com/v5/market/instruments-info?category=linear"
     data = requests.get(url).json()
-    return [s["symbol"] for s in data["result"]["list"] if s["symbol"].endswith("USDT")]
+    symbols = [s["symbol"] for s in data["result"]["list"] if s["symbol"].endswith("USDT")]
+    print(f"🧪 Bybit 抓到 {len(symbols)} 筆")
+    return symbols
 
 def fetch_okx():
     url = "https://www.okx.com/api/v5/public/instruments?instType=SWAP"
@@ -108,9 +106,10 @@ def fetch_okx():
 def fetch_upbit():
     url = "https://api.upbit.com/v1/market/all"
     data = requests.get(url).json()
-    return [s["market"] for s in data if s["market"].startswith("KRW-")]
+    symbols = [s["market"] for s in data if s["market"].startswith("KRW-")]
+    print(f"🧪 Upbit 抓到 {len(symbols)} 筆")
+    return symbols
 
-# ========== 比對 ==========
 async def check_all():
     all_sources = {
         "Binance": fetch_binance(),
@@ -139,7 +138,6 @@ async def notify(text):
     payload = {"chat_id": CHAT_ID, "text": text}
     requests.post(url, data=payload)
 
-# ========== 指令 ==========
 async def force_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await check_all()
     await update.message.reply_text("✅ 手動比對完成")
@@ -164,7 +162,6 @@ async def show_record(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines = [f"{r['timestamp']} - {r['source']} - {r['symbol']}" for r in last]
     await update.message.reply_text("🧾 最後 5 筆紀錄：\n" + "\n".join(lines) if lines else "📭 沒有資料")
 
-# ========== 主程式 ==========
 async def main():
     initialize_record_file()
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
@@ -178,7 +175,7 @@ async def main():
     scheduler.start()
 
     print("✅ 監控機器人已啟動")
-    await notify("✅ 監控機器人 v4.0 已啟動完畢")
+    await notify("✅ 監控機器人 v4.0.1 已啟動完成")
     await app.run_polling()
 
 if __name__ == "__main__":
