@@ -11,12 +11,14 @@ from collections import defaultdict
 # ✅ 台灣時區
 TW = timezone(timedelta(hours=8))
 
-# ✅ 使用環境變數 + Volume 資料路徑
+# ✅ 環境變數
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 CHAT_ID = int(os.getenv("TELEGRAM_CHAT_ID"))
+
+# ✅ Volume 路徑
 RECORD_FILE = "/app/data/records.json"
 
-# ========= 紀錄處理 =========
+# ========== 紀錄處理 ==========
 def load_records():
     if not os.path.exists(RECORD_FILE):
         return []
@@ -45,7 +47,7 @@ def clean_symbol(symbol: str) -> str:
             symbol = symbol.replace(suffix, "")
     return symbol
 
-# ========= 初始化 =========
+# ========== 初始化 ==========
 def initialize_record_file():
     if os.path.exists(RECORD_FILE):
         print("📁 已存在 records.json，跳過初始化")
@@ -68,7 +70,7 @@ def initialize_record_file():
     ]
     save_records(records)
     print(f"✅ 初始交易對紀錄已建立，共 {len(records)} 筆。")
-# ========= 抓資料 =========
+# ========== 抓資料 ==========
 def fetch_binance():
     url = "https://fapi.binance.com/fapi/v1/exchangeInfo"
     data = requests.get(url).json()
@@ -98,7 +100,7 @@ def fetch_upbit():
     data = requests.get(url).json()
     return [s["market"] for s in data if s["market"].startswith("KRW-")]
 
-# ========= 比對邏輯 =========
+# ========== 比對邏輯 ==========
 async def check_all():
     all_sources = {
         "Binance": fetch_binance(),
@@ -114,9 +116,8 @@ async def check_all():
         for symbol in symbols:
             if (source, symbol) not in last_symbols:
                 append_record(source, symbol)
-                clean_name = clean_symbol(symbol)
                 print(f"🟢 新上 {source}：{symbol}")
-                notified.append(f"📢【{source}】新上：{clean_name}")
+                notified.append(f"📢【{source}】新上：{clean_symbol(symbol)}")
             else:
                 if source == "Binance":
                     print(f"🔍 Binance 已存在：{symbol}")
@@ -129,7 +130,7 @@ async def notify(text):
     payload = {"chat_id": CHAT_ID, "text": text}
     requests.post(url, data=payload)
 
-# ========= 指令 =========
+# ========== 指令 ==========
 async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     records = load_records()
     sorted_records = sorted(records, key=lambda x: x["timestamp"], reverse=True)
@@ -139,6 +140,10 @@ async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     records = load_records()
+    if not records:
+        await update.message.reply_text("📭 尚無紀錄")
+        return
+
     initial_time = records[0]["timestamp"]
     init_symbols = {(r["source"], r["symbol"]) for r in records if r["timestamp"] == initial_time}
     new_records = [r for r in records if (r["source"], r["symbol"]) not in init_symbols]
@@ -163,7 +168,7 @@ async def force_check_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     await check_all()
     await update.message.reply_text("✅ 已執行一次比對")
 
-# ========= 啟動 =========
+# ========== 啟動 ==========
 async def main():
     initialize_record_file()
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
@@ -183,6 +188,5 @@ async def main():
 if __name__ == "__main__":
     import asyncio
     import nest_asyncio
-
     nest_asyncio.apply()
     asyncio.run(main())
