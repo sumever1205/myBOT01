@@ -100,7 +100,7 @@ def fetch_upbit():
     data = requests.get(url).json()
     return [s["market"] for s in data if s["market"].startswith("KRW-")]
 
-# ========== 比對邏輯 ==========
+# ========== 偵測邏輯 ==========
 async def check_all():
     all_sources = {
         "Binance": fetch_binance(),
@@ -130,12 +130,12 @@ async def notify(text):
     payload = {"chat_id": CHAT_ID, "text": text}
     requests.post(url, data=payload)
 
-# ========== 指令 ==========
+# ========== 指令功能 ==========
 async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     records = load_records()
     sorted_records = sorted(records, key=lambda x: x["timestamp"], reverse=True)
     lines = [f"{r['timestamp']} - {r['source']}：{r['symbol']}" for r in sorted_records]
-    text = "\n.join(lines[:50]) or "📭 尚無紀錄"
+    text = "\n".join(lines[:50]) or "📭 尚無紀錄"
     await update.message.reply_text(text)
 
 async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -183,7 +183,7 @@ async def debug_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             lines.append(f"📌 {source} 最新：{time} - {clean_symbol(r['symbol'])}")
     await update.message.reply_text("\n".join(lines))
 
-# ========== 啟動 ==========
+# ========== 啟動主程式 ==========
 async def main():
     initialize_record_file()
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
