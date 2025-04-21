@@ -76,7 +76,6 @@ def initialize_record_file():
     ]
     save_records(records)
     print(f"✅ 初始化完成，共 {len(records)} 筆")
-
 def fetch_binance():
     url = "https://fapi.binance.com/fapi/v1/exchangeInfo"
     data = requests.get(url).json()
@@ -138,6 +137,26 @@ async def notify(text):
     payload = {"chat_id": CHAT_ID, "text": text}
     requests.post(url, data=payload)
 
+# ===== 新增 /check 指令 =====
+async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    records = load_records()
+    grouped = defaultdict(list)
+    for r in sorted(records, key=lambda x: x["timestamp"], reverse=True):
+        grouped[r["source"]].append(r)
+
+    output = []
+    for source in ["Binance", "Bybit", "OKX", "Upbit"]:
+        recent = grouped[source][:10]
+        if recent:
+            output.append(f"📊 【{source}】最新上幣：")
+            for r in recent:
+                dt = datetime.strptime(r["timestamp"], "%Y-%m-%d %H:%M:%S").astimezone(TW)
+                time_str = dt.strftime("%m-%d %H:%M")
+                output.append(f"- {time_str} - {clean_symbol(r['symbol'])}")
+            output.append("")
+    await update.message.reply_text("\n".join(output) or "📭 無新增紀錄")
+
+# 其餘指令與主程式不變
 async def force_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await check_all()
     await update.message.reply_text("✅ 手動比對完成")
@@ -166,6 +185,7 @@ async def main():
     initialize_record_file()
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
+    app.add_handler(CommandHandler("check", check_command))
     app.add_handler(CommandHandler("forcecheck", force_check))
     app.add_handler(CommandHandler("debug", debug_command))
     app.add_handler(CommandHandler("showrecord", show_record))
@@ -175,7 +195,7 @@ async def main():
     scheduler.start()
 
     print("✅ 監控機器人已啟動")
-    await notify("✅ 監控機器人 v4.0.1 已啟動完成")
+    await notify("✅ 監控機器人 v4.1 已啟動完成")
     await app.run_polling()
 
 if __name__ == "__main__":
