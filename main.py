@@ -76,6 +76,7 @@ def initialize_record_file():
     ]
     save_records(records)
     print(f"✅ 初始化完成，共 {len(records)} 筆")
+
 def fetch_binance():
     url = "https://fapi.binance.com/fapi/v1/exchangeInfo"
     data = requests.get(url).json()
@@ -137,7 +138,7 @@ async def notify(text):
     payload = {"chat_id": CHAT_ID, "text": text}
     requests.post(url, data=payload)
 
-# ===== 新增 /check 指令 =====
+# ✅ 修正版 /check
 async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     records = load_records()
     grouped = defaultdict(list)
@@ -154,9 +155,12 @@ async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 time_str = dt.strftime("%m-%d %H:%M")
                 output.append(f"- {time_str} - {clean_symbol(r['symbol'])}")
             output.append("")
-    await update.message.reply_text("\n".join(output) or "📭 無新增紀錄")
 
-# 其餘指令與主程式不變
+    text = "\n".join([line for line in output if line.strip()])
+    if not text:
+        text = "📭 無新增紀錄"
+    await update.message.reply_text(text)
+
 async def force_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await check_all()
     await update.message.reply_text("✅ 手動比對完成")
@@ -195,7 +199,7 @@ async def main():
     scheduler.start()
 
     print("✅ 監控機器人已啟動")
-    await notify("✅ 監控機器人 v4.1 已啟動完成")
+    await notify("✅ 監控機器人 v4.1.1 已啟動完成")
     await app.run_polling()
 
 if __name__ == "__main__":
