@@ -138,7 +138,6 @@ async def notify(text):
     payload = {"chat_id": CHAT_ID, "text": text}
     requests.post(url, data=payload)
 
-# ✅ 升級版 /check：只列出 timestamp ≠ 初始化時間者
 async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     records = load_records()
     if not records:
@@ -158,15 +157,16 @@ async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if recent:
             output.append(f"📊 【{source}】最新上幣：")
             for r in recent:
-                dt = datetime.strptime(r["timestamp"], "%Y-%m-%d %H:%M:%S").astimezone(TW)
-                time_str = dt.strftime("%m-%d %H:%M")
-                output.append(f"- {time_str} - {clean_symbol(r['symbol'])}")
+                dt = datetime.strptime(r["timestamp"], "%Y-%m-%d %H:%M:%S")
+                time_str = dt.strftime("%m/%d %H:00")
+                output.append(f"{time_str} {clean_symbol(r['symbol'])}")
             output.append("")
 
     text = "\n".join([line for line in output if line.strip()])
     if not text:
         text = "📭 無新增紀錄"
     await update.message.reply_text(text)
+
 
 async def force_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await check_all()
