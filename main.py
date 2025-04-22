@@ -202,11 +202,11 @@ async def main():
     app.add_handler(CommandHandler("showrecord", show_record))
 
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(check_all, "interval", minutes=3)
+    scheduler.add_job(check_all, "interval", minutes=5)
     scheduler.start()
 
     print("✅ 監控機器人已啟動")
-    await notify("✅ 監控機器人 v4.1.2 已啟動完成")
+    await notify("✅ 監控機器人已啟動完成")
     await app.run_polling()
 
 if __name__ == "__main__":
